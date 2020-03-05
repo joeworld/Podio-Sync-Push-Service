@@ -1,0 +1,23 @@
+{
+  "name": "push-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "serve": "nodemon index.js",
+    "start": "pm2 restart all"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "faye": "^1.2.4",
+    "mongoose": "^5.9.3",
+    "nodemon": "^2.0.2",
+    "podiojs": "git://github.com/haugstrup/podiojs.git",
+    "request": "^2.88.2"
+  }
+}

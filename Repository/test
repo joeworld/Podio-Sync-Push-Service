@@ -1,0 +1,80 @@
+const mongoose = require('mongoose');
+const faye = require('faye');
+const podio = require('podiojs');
+const request = require('request');
+
+podio.client.client_id = process.env.PODIO_CLIENT;
+podio.client.client_secret = process.env.PODIO_SECRET;
+
+const podioUser = {
+    username: process.env.USERNAME,
+    password: process.env.PASSWORD,
+    user_id: process.env.USER_ID
+};
+
+exports.Push = async (_request) => {
+
+    // Error handling for podiojs
+    await podio.on('error', function(apiRequest, response, body){
+        console.error('Podio Error:', body);
+    });
+
+    // Initialize faye client
+    const fayeClient = await new faye.Client('https://push.podio.com/faye');
+
+    // Extend faye client with signature and timestamp used for authentication
+    await fayeClient.addExtension({
+        'outgoing': function(message, callback) {
+            message.ext = message.ext || {};
+            message.ext = {private_pub_signature: push.channel.signature, private_pub_timestamp: push.channel.timestamp};
+            callback(message);
+        }
+    });
+
+    // Simple push object for handling a subscription
+     const push = {
+        subscription: null,
+        channel: null,
+        messageReceived: function(message) {
+            console.log("New message received: ", message);
+            // You probably want to filter out your own messages:
+            if (message.data.created_by.type === 'user' && message.data.created_by.id !== podioUser.user_id){
+                request.post({
+                    headers: {'content-type' : 'application/json'},
+                    url:     'https://in.thatapp.io/hook/5e261b10a46d287b2bf6446e',
+                    body:    {
+                        data: JSON.stringify(message),
+                        item_id: _request.item_id
+                    }
+                }, function(error, response, body){
+                    if (error) { return console.log(error); }
+                    console.log(body);
+                });
+            }
+        },
+        addSubscription: function(channel) {
+            this.channel = channel;
+            this.subscription = fayeClient.subscribe(this.channel.channel, this.messageReceived);
+            this.subscription.then(function(){
+                console.log('Subscription is now active');
+            }, function(error){
+                console.error('Subscription failed: ', error.message, error);
+            });
+        }
+    };
+
+    // Authenticate with Podio
+    // Locate push channel for user object
+    // Add subscription to channel
+    await podio.authenticate('password', {'username': podioUser.username, 'password': podioUser.password}, function(response, body){
+        podio.get(`/item/${_request.item_id}`, {}, function(response, body){
+            push.addSubscription(body.push);
+        });
+    });
+
+    return {
+        item_id: _request.item_id,
+        message: "Worked Successfully"
+    }
+
+};
